@@ -1,23 +1,25 @@
-#include <LiquidCrystal.h>
+// C++ code
+//
+#include <Adafruit_LiquidCrystal.h>
 
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+int seconds = 0;
 
-void setup() {
- 
- lcd.begin(16, 2);
- 
+Adafruit_LiquidCrystal lcd_1(0);
+
+void setup()
+{
+  lcd_1.begin(16, 2);
+
+  lcd_1.print("hello world");
 }
 
-void loop() {
- 
- 
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("Hello Hackster");
-  lcd.setCursor(0, 1);
-  lcd.print("Value : ");
-  lcd.setCursor(10, 1);
-  lcd.print(analogRead(A0));
-  Serial.println(analogRead(A0));
-delay(500);
+void loop()
+{
+  lcd_1.setCursor(0, 1);
+  lcd_1.print(seconds);
+  lcd_1.setBacklight(1);
+  delay(500); // Wait for 500 millisecond(s)
+  lcd_1.setBacklight(0);
+  delay(500); // Wait for 500 millisecond(s)
+  seconds += 1;
 }
