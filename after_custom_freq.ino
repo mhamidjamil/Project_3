@@ -24,8 +24,8 @@ int frequency_increment = 731;
 //---------------------------------
 // resistros values setting (end)
 
-int glob_frequency = 1;
-int glob_duty = 1;
+int glob_frequency = 3500;
+int glob_duty = 50;
 
 int glob_analaog_1 = 0;
 int glob_analaog_2 = 0;
@@ -34,11 +34,11 @@ int softMargin = 20;
 
 int freq_index = 0;
 int duty_index = 0;
-bool in_flow = false;
 
 int frequency_steps[5] = {1, 10, 100, 1000, 10000};
 int duty_steps[3] = {1, 5, 10};
 
+void display_line_2();
 Adafruit_LiquidCrystal lcd_1(0);
 void incrementer(int input, int *parameter_match, int *to_beChanged, int to_be_add);
 void setup()
@@ -49,35 +49,29 @@ void setup()
 
     lcd_1.setBacklight(1);
     lcd_1.print("PROMAX by H2G");
-    delay(500);
+    // delay(5000);
     lcd_1.setCursor(0, 0);
-    lcd_1.print("Default setting : ");
-    lcd_1.setCursor(0, 1);
-    lcd_1.print("Freq:" + String(glob_frequency) + "Hz" + " Duty:" + String(glob_duty) + "%");
-    delay(3000);
+    lcd_1.print("Freq        Duty");
+    glob_frequency = 3000;
+    glob_duty = 50;
+    display_line_2();
+    delay(2000);
     // lcd_1.clear();
 }
 
 void loop()
 {
 
-    // if (analogRead(analogPin) > 100 || analogRead(analogPin_2) > 100)
-    // {
     if (glob_analaog_1 != analogRead(analogPin) || glob_analaog_2 != analogRead(analogPin_2))
     {
-        // lcd_1.clear();
-        // lcd_1.setCursor(0, 0);
-        // lcd_1.print("Setting changed ");
         glob_analaog_1 = analogRead(analogPin);
         glob_analaog_2 = analogRead(analogPin_2);
-        // lcd_1.setCursor(0, 1);
-        // lcd_1.print(glob_analaog_1);
-        // lcd_1.setCursor(5, 1);
-        // lcd_1.print(glob_analaog_2);
+        // if any button state changes glob_analaog_1/2 will get reading for further process
         incrementer(glob_analaog_1, &frequency_increment, &glob_frequency, 1);
         incrementer(glob_analaog_1, &frequency_decrement, &glob_frequency, -1);
         incrementer(glob_analaog_1, &duty_increment, &glob_duty, 1);
         incrementer(glob_analaog_1, &duty_decrement, &glob_duty, -1);
+        // upper four lines uses a function to increment or decrement in frequency and duty
         if ((glob_analaog_2 >= (Fstep - softMargin) && glob_analaog_2 <= (Fstep + softMargin)))
         {
             if (freq_index < 5)
@@ -91,8 +85,9 @@ void loop()
                 glob_frequency = frequency_steps[freq_index];
                 freq_index++;
             }
-            lcd_1.setCursor(0, 1);
-            delay(100);
+            // lcd_1.setCursor(0, 1);
+            // delay(100);
+            display_line_2();
         }
         else if ((glob_analaog_2 >= (duty_step - softMargin) && glob_analaog_2 <= (duty_step + softMargin)))
         {
@@ -107,43 +102,85 @@ void loop()
                 glob_duty = duty_steps[duty_index];
                 duty_index++;
             }
-            lcd_1.setCursor(0, 1);
-            // lcd_1.print("Frq :" + String(glob_frequency) + "Hz" + " D : " + String(glob_duty) + "%  ");
-            delay(100);
+            display_line_2();
         }
         else if ((glob_analaog_2 >= (present - softMargin) && glob_analaog_2 <= (present + softMargin)))
         {
             glob_duty = 50;
             glob_frequency = 1000;
-            delay(10);
-            // lcd_1.setCursor(0, 1);
-            // lcd_1.print("Fr:" + String(glob_frequency) + "Hz" + " D:" + String(glob_duty) + "%    ");
+            display_line_2();
         }
     }
-    if (!in_flow)
-    {
-        lcd_1.setCursor(0, 1);
-        lcd_1.print("                 ");
-        in_flow = true;
-    }
-    lcd_1.setCursor(0, 1);
-    lcd_1.print("Fr:" + String(glob_frequency) + "Hz" + " D:" + String(glob_duty) + "%      ");
+    display_line_2();
     output_1 = map(glob_duty, 1, 100, 0, 255);
     output_2 = map(glob_duty, 1, 100, 0, 255);
+    if (glob_frequency == 10)
+    {
+        TCCR2B = TCCR2B & B11111000 | B00000111;
+    }
+    else if (glob_frequency == 100)
+    {
+        TCCR2B = TCCR2B & B11111000 | B00000110;
+    }
+    else if (glob_frequency == 1000)
+    {
+        TCCR2B = TCCR2B & B11111000 | B00000011;
+    }
+    analogWrite(output_pin_1, output_1);
+    analogWrite(output_pin_2, output_2);
 }
 void incrementer(int input, int *parameter_match, int *to_beChanged, int to_be_add)
 {
     if ((input >= (*parameter_match - softMargin) && input <= (*parameter_match + softMargin)))
     {
         *to_beChanged += to_be_add;
-        if (!in_flow)
+        display_line_2();
+    }
+}
+void display_line_2()
+{
+    lcd_1.setCursor(0, 1);
+    lcd_1.setCursor(0, 1);
+    int temp_size = (String(glob_frequency).length());
+    int temp_size_2 = temp_size;
+    if (temp_size > 3)
+    {
+        lcd_1.print(String(glob_frequency / 1000));
+        lcd_1.print("K");
+    }
+    else if (temp_size > 6)
+    {
+        lcd_1.print(String(glob_frequency / 100000));
+        lcd_1.print("M");
+    }
+    else
+    {
+        lcd_1.print(String(glob_frequency));
+    } // upper part manage frequency output
+    // lower part will manage Duty ouput
+    temp_size = (String(glob_duty).length());
+    if (glob_frequency == 1)
+    {
+        for (int j = 1 + (String(glob_duty).length()); j < 16; j++)
         {
-            lcd_1.setCursor(0, 1);
-            lcd_1.print("                 ");
-            in_flow = true;
+            lcd_1.print(" ");
         }
-        lcd_1.setCursor(0, 1);
-        lcd_1.print("Fr:" + String(glob_frequency) + "Hz" + " D:" + String(glob_duty) + "%      ");
-        delay(100);
+        lcd_1.print(String(glob_duty));
+    }
+    else if ((glob_frequency >= 10 && glob_frequency <= 99) || (glob_frequency >= 1000 && glob_frequency <= 9999))
+    {
+        for (int j = 2 + (String(glob_duty).length()); j < 16; j++)
+        {
+            lcd_1.print(" ");
+        }
+        lcd_1.print(String(glob_duty));
+    }
+    else if (temp_size_2 >= 4 || (glob_frequency >= 100 && glob_frequency <= 999))
+    {
+        for (int j = 3 + (String(glob_duty).length()); j < 16; j++)
+        {
+            lcd_1.print(" ");
+        }
+        lcd_1.print(String(glob_duty));
     }
 }
